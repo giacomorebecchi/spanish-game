@@ -3,7 +3,18 @@ from typing import Callable
 from unittest.mock import patch
 
 import pytest
-from spanish_game.data import load_vocabulary
+from spanish_game.data import load_vocabulary, validate_vocabulary
+
+
+def test_validate_vocabulary():
+    vocabulary_langs = ["Spanish", "Italian"]
+    languages = ["Italian", "Spanish"]
+    assert validate_vocabulary(vocabulary_langs, languages)
+    vocabulary_langs.append("Categories")
+    assert validate_vocabulary(vocabulary_langs, languages)
+    languages.append("English")
+    with pytest.raises(Exception):
+        assert validate_vocabulary(vocabulary_langs, languages)
 
 
 @pytest.mark.parametrize("orient", ["dict", "index"])
