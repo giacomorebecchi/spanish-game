@@ -5,3 +5,5 @@ ROOT_DIR = os.path.realpath(
 )
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 VOCABULARY_FILE = os.path.join(DATA_DIR, "vocabulary.xlsx")
+
+LANGUAGES = ["Italian", "Spanish"]
