@@ -1,7 +1,9 @@
+import random
 import re
 from typing import Callable, Dict
 
 import inquirer
+import numpy as np
 from inquirer import errors
 
 from spanish_game.data import load_vocabulary
@@ -71,5 +73,34 @@ class Game:
         answers = inquirer.prompt(questions)
         return answers
 
+    def calculate_indices(self):
+        return set.intersection(
+            *[
+                {
+                    ind
+                    for ind, val in self.vocabulary[lang].items()
+                    if not (isinstance(val, float) and np.isnan(val))
+                }
+                for lang in [self.source_lang, self.reply_lang]
+            ]
+        )
+
     def play_game(self) -> None:
+        self.available_indices = self.calculate_indices()
+        for round_ in range(1, self.n_rounds):
+            try:
+                self.play_round()
+            except KeyboardInterrupt:
+                store_result = inquirer.confirm(
+                    message="Game interrupted with the keyboard. Would you like to save your score nevertheless?",
+                    default=True,
+                )
+                if store_result:
+                    self.store_result()
+                return None
+
+    def play_round(self) -> None:
+        pass  # TODO
+
+    def store_result(self) -> None:
         pass  # TODO
