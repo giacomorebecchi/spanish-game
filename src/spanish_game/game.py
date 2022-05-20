@@ -18,8 +18,9 @@ class Game:
         self.username = inquiry["username"]
         self.source_lang = inquiry["source_lang"]
         self.reply_lang = inquiry["reply_lang"]
-        self.n_rounds = int(inquiry["n_rounds"])
-        self.points = 0
+        self.available_indices = self.calculate_indices()
+        self.n_rounds = min(len(self.available_indices), int(inquiry["n_rounds"]))
+        self.score = 0
         self.play_game()
 
     def inquire_validator(
@@ -74,19 +75,23 @@ class Game:
         return answers
 
     def calculate_indices(self):
-        return set.intersection(
-            *[
-                {
-                    ind
-                    for ind, val in self.vocabulary[lang].items()
-                    if not (isinstance(val, float) and np.isnan(val))
-                }
-                for lang in [self.source_lang, self.reply_lang]
-            ]
+        indices = list(
+            set.intersection(
+                *[
+                    {
+                        ind
+                        for ind, val in self.vocabulary[lang].items()
+                        if not (isinstance(val, float) and np.isnan(val))
+                    }
+                    for lang in [self.source_lang, self.reply_lang]
+                ]
+            )
         )
+        random.shuffle(indices)
+        return indices
 
     def play_game(self) -> None:
-        self.available_indices = self.calculate_indices()
+        self.welcome_user()
         for round_ in range(1, self.n_rounds):
             try:
                 self.play_round()
@@ -100,7 +105,21 @@ class Game:
                 return None
 
     def play_round(self) -> None:
+        index = self.available_indices.pop()
+        word = self.vocabulary[self.source_lang][index]
+        solution = self.vocabulary[self.reply_lang][index]
+        answer = input(f"{word}: ")
+        self.score += self.calculate_score(solution, answer)
+        if solution == answer:
+            print("Correct!")
+        else:
+            print(f"Wrong! The correct answer was: {solution}")
+
+    def calculate_score(self, solution: str, answer: str):
+        return 0  # TODO
+
+    def store_score(self) -> None:
         pass  # TODO
 
-    def store_result(self) -> None:
+    def welcome_user(self) -> None:
         pass  # TODO
