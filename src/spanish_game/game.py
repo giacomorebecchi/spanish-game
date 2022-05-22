@@ -1,6 +1,6 @@
 import random
 import re
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import inquirer
 import numpy as np
@@ -23,6 +23,7 @@ class Game:
         self.n_rounds = min(len(self.available_indices), int(inquiry["n_rounds"]))
         self.score = 0
         self.rounds_played = 0
+        self.mistakes = []
         self.play_game()
 
     def inquire_validator(
@@ -76,7 +77,7 @@ class Game:
         answers = inquirer.prompt(questions)
         return answers
 
-    def calculate_indices(self):
+    def calculate_indices(self) -> List:
         indices = list(
             set.intersection(
                 *[
@@ -110,6 +111,12 @@ class Game:
                     print("You have closed the game successfully. Have a nice day!")
                 return None
         self.store_score()
+        if self.mistakes and inquirer.confirm(
+            message="Would you like to start a new game, practicing only on your mistakes?",
+            default=True,
+        ):
+            self.reset_game()
+            self.play_game()
 
     def play_round(self) -> None:
         index = self.available_indices.pop()
@@ -121,19 +128,21 @@ class Game:
         if solution == answer:
             print("Correct!")
             self.score += 10  # TODO: Parametrize in the whole code
-        elif not answer:
-            print(f"The correct answer is: {solution.capitalize()}")
         else:
-            self.score += self.calculate_score(solution, answer)
-            print(f"Wrong! The correct answer was: {solution.capitalize()}")
+            self.mistakes.append(index)
+            if not answer:
+                print(f"The correct answer is: {solution.capitalize()}")
+            else:
+                self.score += self.calculate_score(solution, answer)
+                print(f"Wrong! The correct answer was: {solution.capitalize()}")
 
     def calculate_score(self, solution: str, answer: str):
         optcost, a1, b1, _ = strings_score(
             solution, answer, c_skip=2, c_misalignment=1, skipchar="-"
         )  # TODO: Parametrize score
-        print("-"*(10+len(a1)))
+        print("-" * (10 + len(a1)))
         print(f"Performed match:\nAnswer:   {b1}\nSolution: {a1}")
-        print("-"*(10+len(a1)))
+        print("-" * (10 + len(a1)))
         round_score = max(0, 10 - optcost)
         return round_score
 
@@ -149,3 +158,10 @@ class Game:
             f"Hi {self.username}, thanks for playing! Are you ready to start?",
             default=True,
         )
+
+    def reset_game(self) -> None:
+        self.n_rounds = len(self.mistakes)
+        self.available_indices = self.mistakes.copy()
+        random.shuffle(self.available_indices)
+        self.score = 0
+        self.mistakes = []
