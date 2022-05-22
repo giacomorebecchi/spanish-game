@@ -117,7 +117,7 @@ class Game:
         solution = self.vocabulary[self.reply_lang][index].lower()
         # TODO: Handle multpile solutions
         # TODO: Handle accents
-        answer = input(f"{word}: ").lower()
+        answer = input(f"\n{word}: ").lower()
         if solution == answer:
             print("Correct!")
             self.score += 10  # TODO: Parametrize in the whole code
@@ -131,7 +131,9 @@ class Game:
         optcost, a1, b1, _ = strings_score(
             solution, answer, c_skip=2, c_misalignment=1, skipchar="-"
         )  # TODO: Parametrize score
+        print("-"*(10+len(a1)))
         print(f"Performed match:\nAnswer:   {b1}\nSolution: {a1}")
+        print("-"*(10+len(a1)))
         round_score = max(0, 10 - optcost)
         return round_score
 
@@ -142,7 +144,7 @@ class Game:
         )
 
     def welcome_user(self) -> None:
-        print()
+        print("\n")
         inquirer.confirm(
             f"Hi {self.username}, thanks for playing! Are you ready to start?",
             default=True,
