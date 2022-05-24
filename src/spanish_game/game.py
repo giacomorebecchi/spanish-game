@@ -29,7 +29,7 @@ class Game:
     def inquire_validator(
         self, answers: Dict[str, str], current: str, validate: Callable, message: str
     ) -> bool:
-        if validate(current):
+        if validate(answers, current):
             return True
         else:
             raise errors.ValidationError(current, message)
@@ -43,7 +43,7 @@ class Game:
                 validate=lambda answers, current: self.inquire_validator(
                     answers,
                     current,
-                    lambda x: re.match(re.compile(r"[a-zA-Z0-9]{4,12}"), x),
+                    lambda _, x: re.match(re.compile(r"[a-zA-Z0-9]{4,12}"), x),
                     "Username must be only formed by letters or numbers, length of 4 to 12.",
                 ),
             ),
@@ -69,7 +69,7 @@ class Game:
                 validate=lambda answers, current: self.inquire_validator(
                     answers,
                     current,
-                    lambda x: re.match(re.compile(r"[0-9]+"), x),
+                    lambda _, x: re.match(re.compile(r"[0-9]+"), x),
                     "Number of rounds must be an integer.",
                 ),
             ),
