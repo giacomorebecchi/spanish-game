@@ -164,4 +164,5 @@ class Game:
         self.available_indices = self.mistakes.copy()
         random.shuffle(self.available_indices)
         self.score = 0
+        self.rounds_played = 0
         self.mistakes = []
