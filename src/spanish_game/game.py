@@ -6,6 +6,7 @@ import inquirer
 import numpy as np
 from inquirer import errors
 
+from spanish_game import settings
 from spanish_game.data import load_vocabulary
 from spanish_game.definitions import LANGUAGES
 from spanish_game.match_strings import strings_score
@@ -22,6 +23,7 @@ class Game:
         self.available_indices = self.calculate_indices()
         self.n_rounds = min(len(self.available_indices), int(inquiry["n_rounds"]))
         self.score = 0
+        self.settings = settings.get_settings()
         self.rounds_played = 0
         self.mistakes = []
         self.play_game()
@@ -127,7 +129,7 @@ class Game:
         answer = input(f"\n{word}: ").lower()
         if solution == answer:
             print("Correct!")
-            self.score += 10  # TODO: Parametrize in the whole code
+            self.score += self.settings.SCORE_ROUND
         else:
             self.mistakes.append(index)
             if not answer:
@@ -138,8 +140,12 @@ class Game:
 
     def calculate_score(self, solution: str, answer: str):
         optcost, a1, b1, _ = strings_score(
-            solution, answer, c_skip=2, c_misalignment=1, skipchar="-"
-        )  # TODO: Parametrize score
+            solution,
+            answer,
+            c_skip=self.settings.COST_SKIP,
+            c_misalignment=self.settings.COST_MISALIGNMENT,
+            skipchar=self.settings.SKIP_CHARACTER,
+        )
         print("-" * (10 + len(a1)))
         print(f"Performed match:\nAnswer:   {b1}\nSolution: {a1}")
         print("-" * (10 + len(a1)))
