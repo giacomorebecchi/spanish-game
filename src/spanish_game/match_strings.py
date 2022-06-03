@@ -1,7 +1,5 @@
 import numpy as np
 
-from spanish_game.settings import get_settings
-
 
 def costchar(x, y, c_m):
     return 0.0 if x == y else c_m
