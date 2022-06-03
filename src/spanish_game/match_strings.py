@@ -1,11 +1,18 @@
 import numpy as np
 
-
-def costchar(x, y, c_m):
-    return 0.0 if x == y else c_m
+from spanish_game.definitions import ACCENT_EQUIVALENTS
 
 
-def strings_score(a, b, c_skip=1.0, c_misalignment=np.inf, skipchar="-"):
+def costchar(x, y, c_m, c_a):
+    if x == y:
+        return 0.0
+    elif y in ACCENT_EQUIVALENTS.get(x, {}):
+        return c_a
+    else:
+        return c_m
+
+
+def strings_score(a, b, c_skip=2.0, c_misalignment=1.0, c_accent=0.5, skipchar="-"):
 
     la = len(a)
     lb = len(b)
@@ -26,7 +33,9 @@ def strings_score(a, b, c_skip=1.0, c_misalignment=np.inf, skipchar="-"):
         for k2 in range(1, lb + 1):
             w_top = c[k1 - 1, k2] + c_skip
             w_left = c[k1, k2 - 1] + c_skip
-            w_diag = c[k1 - 1, k2 - 1] + costchar(a[k1 - 1], b[k2 - 1], c_misalignment)
+            w_diag = c[k1 - 1, k2 - 1] + costchar(
+                a[k1 - 1], b[k2 - 1], c_misalignment, c_accent
+            )
             w = min(w_left, w_top, w_diag)
             c[k1, k2] = w
             if w == w_left:
