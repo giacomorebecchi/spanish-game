@@ -14,10 +14,8 @@ def validate_vocabulary(
     return True
 
 
-def load_vocabulary(
-    file: str = VOCABULARY_FILE, orient: str = "dict"
-) -> Dict[str, Dict[int, str]]:
+def load_vocabulary(file: str = VOCABULARY_FILE) -> pd.DataFrame:
     with open(file, mode="rb") as f:
         df: pd.DataFrame = pd.read_excel(f, sheet_name="Sheet1")
     validate_vocabulary(df.columns)
-    return df.to_dict(orient=orient)
+    return df
