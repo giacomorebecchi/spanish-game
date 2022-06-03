@@ -2,7 +2,13 @@ import os
 import re
 from pathlib import PurePosixPath
 
-from spanish_game.definitions import DATA_DIR, LANGUAGES, ROOT_DIR, VOCABULARY_FILE
+from spanish_game.definitions import (
+    DATA_DIR,
+    LANGUAGES,
+    ROOT_DIR,
+    VOCABULARY_FILE,
+    _get_accent_equivalents,
+)
 
 
 def test_root_dir():
@@ -23,3 +29,18 @@ def test_languages():
     for lang in LANGUAGES:
         assert isinstance(lang, str)
         assert re.match(re.compile(r"^[A-Z][a-z]+$"), lang)
+
+
+def test__get_accent_equivalents():
+    l = [
+        {"a", "à", "á"},
+        {"n", "ñ"},
+    ]
+    result = {
+        "a": {"à", "á"},
+        "á": {"a", "à"},
+        "à": {"a", "á"},
+        "n": {"ñ"},
+        "ñ": {"n"},
+    }
+    assert _get_accent_equivalents(l) == result

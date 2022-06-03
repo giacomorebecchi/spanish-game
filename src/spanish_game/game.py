@@ -7,7 +7,7 @@ from inquirer import errors
 
 from spanish_game import settings
 from spanish_game.data import load_vocabulary
-from spanish_game.definitions import LANGUAGES
+from spanish_game.definitions import ACCENT_EQUIVALENTS, LANGUAGES
 from spanish_game.match_strings import strings_score
 
 
@@ -121,11 +121,22 @@ class Game:
         word: str = self.vocabulary.loc[index, self.source_lang]
         solution: str = self.vocabulary.loc[index, self.reply_lang].lower()
         # TODO: Handle multiple solutions
-        # TODO: Handle accents
         answer = input(f"\n{word}: ").lower()
         if solution == answer:
             print("Correct!")
             self.score += self.settings.SCORE_ROUND
+        elif self.difference_only_accents(answer, solution):
+            self.mistakes.append(index)
+            print(
+                f"Almost! Just check the accents for a perfect answer. The correct accentuation is: {solution}"
+            )
+            penalty = sum(
+                [
+                    self.settings.COST_ACCENT if x != y else 0
+                    for x, y in zip(answer, solution)
+                ]
+            )
+            self.score += self.settings.SCORE_ROUND - penalty
         else:
             self.mistakes.append(index)
             if not answer:
@@ -140,6 +151,7 @@ class Game:
             answer,
             c_skip=self.settings.COST_SKIP,
             c_misalignment=self.settings.COST_MISALIGNMENT,
+            c_accent=self.settings.COST_ACCENT,
             skipchar=self.settings.SKIP_CHARACTER,
         )
         print("-" * (10 + len(a1)))
@@ -147,6 +159,15 @@ class Game:
         print("-" * (10 + len(a1)))
         round_score = max(0, 10 - optcost)
         return round_score
+
+    def difference_only_accents(self, w1: str, w2: str) -> bool:
+        if len(w1) != len(w2):
+            return False
+        else:
+            for c1, c2 in zip(w1, w2):
+                if not (c1 == c2 or c1 in ACCENT_EQUIVALENTS.get(c2, {})):
+                    return False
+            return True
 
     def store_score(self) -> None:
         self.final_score = round(self.score / self.rounds_played, 4)

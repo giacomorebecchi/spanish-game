@@ -6,6 +6,7 @@ from spanish_game import config
 class Settings(BaseModel):
     COST_SKIP: float = config.COST_SKIP
     COST_MISALIGNMENT: float = config.COST_MISALIGNMENT
+    COST_ACCENT: float = config.COST_ACCENT
     SCORE_ROUND: float = config.SCORE_ROUND
     SKIP_CHARACTER: str = config.SKIP_CHARACTER
 
