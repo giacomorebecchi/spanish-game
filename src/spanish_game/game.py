@@ -1,9 +1,8 @@
-import random
 import re
-from typing import Callable, Dict, List
+from typing import Callable, Dict
 
 import inquirer
-import numpy as np
+import pandas as pd
 from inquirer import errors
 
 from spanish_game import settings
@@ -14,18 +13,20 @@ from spanish_game.match_strings import strings_score
 
 class Game:
     def __init__(self) -> None:
-        self.vocabulary = load_vocabulary()
+        self.raw_vocabulary = load_vocabulary()
         self.available_langs = LANGUAGES
         inquiry = self._inquire()
         self.username = inquiry["username"]
         self.source_lang = inquiry["source_lang"]
         self.reply_lang = inquiry["reply_lang"]
-        self.available_indices = self.calculate_indices()
-        self.n_rounds = min(len(self.available_indices), int(inquiry["n_rounds"]))
+        self.mistakes = []
+        self.vocabulary = self.prepare_vocabulary()
+        self.n_rounds = min(
+            len(self.vocabulary), int(inquiry["n_rounds"])
+        )  # TODO: Calculate rounds with verbose function
         self.score = 0
         self.settings = settings.get_settings()
         self.rounds_played = 0
-        self.mistakes = []
         self.play_game()
 
     def inquire_validator(
@@ -79,24 +80,19 @@ class Game:
         answers = inquirer.prompt(questions)
         return answers
 
-    def calculate_indices(self) -> List:
-        indices = list(
-            set.intersection(
-                *[
-                    {
-                        ind
-                        for ind, val in self.vocabulary[lang].items()
-                        if not (isinstance(val, float) and np.isnan(val))
-                    }
-                    for lang in [self.source_lang, self.reply_lang]
-                ]
-            )
-        )
-        random.shuffle(indices)
-        return indices
+    def prepare_vocabulary(self) -> pd.DataFrame:
+        vocabulary = self.raw_vocabulary.loc[
+            :, [self.source_lang, self.reply_lang]
+        ].copy()
+        if self.mistakes:
+            vocabulary = vocabulary.loc[self.mistakes, :]
+        vocabulary = vocabulary.dropna(axis=0).sample(frac=1)
+        return vocabulary
 
     def play_game(self) -> None:
-        self.welcome_user()
+        if not self.welcome_user():
+            print("No problem. See you later!")
+            return None
         for _ in range(self.n_rounds):
             try:
                 self.play_round()
@@ -115,16 +111,16 @@ class Game:
         self.store_score()
         if self.mistakes and inquirer.confirm(
             message="Would you like to start a new game, practicing only on your mistakes?",
-            default=True,
+            default=False,
         ):
             self.reset_game()
             self.play_game()
 
     def play_round(self) -> None:
-        index = self.available_indices.pop()
-        word = self.vocabulary[self.source_lang][index]
-        solution = self.vocabulary[self.reply_lang][index].lower()
-        # TODO: Handle multpile solutions
+        index = self.vocabulary.index[self.rounds_played]
+        word: str = self.vocabulary.loc[index, self.source_lang]
+        solution: str = self.vocabulary.loc[index, self.reply_lang].lower()
+        # TODO: Handle multiple solutions
         # TODO: Handle accents
         answer = input(f"\n{word}: ").lower()
         if solution == answer:
@@ -160,15 +156,14 @@ class Game:
 
     def welcome_user(self) -> None:
         print("\n")
-        inquirer.confirm(
-            f"Hi {self.username}, thanks for playing! Are you ready to start?",
+        return inquirer.confirm(
+            f"Are you ready to start playing?",
             default=True,
         )
 
     def reset_game(self) -> None:
         self.n_rounds = len(self.mistakes)
-        self.available_indices = self.mistakes.copy()
-        random.shuffle(self.available_indices)
+        self.vocabulary = self.prepare_vocabulary()
         self.score = 0
         self.rounds_played = 0
         self.mistakes = []
