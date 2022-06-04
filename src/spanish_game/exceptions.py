@@ -10,3 +10,7 @@ class InquiryException(Exception):
 
 class GameStoppedError(Exception):
     pass
+
+
+class ExistentUserError(Exception):
+    pass
