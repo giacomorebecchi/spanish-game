@@ -18,3 +18,4 @@ dependencies:
   - pytest
   - inquirer
   - pydantic
+  - bcrypt
