@@ -1,4 +1,5 @@
 from spanish_game.game import Game
 
 if __name__ == "__main__":
-    Game()
+    g = Game()
+    g.play_game()

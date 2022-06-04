@@ -25,7 +25,6 @@ class Game:
         self.score = 0
         self.settings = settings.get_settings()
         self.rounds_played = 0
-        self.play_game()
 
     def calculate_rounds(self, n_rounds: str) -> int:
         len_voc = len(self.vocabulary)
