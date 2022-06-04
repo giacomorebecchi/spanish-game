@@ -21,13 +21,24 @@ class Game:
         self.reply_lang = inquiry["reply_lang"]
         self.mistakes = []
         self.vocabulary = self.prepare_vocabulary()
-        self.n_rounds = min(
-            len(self.vocabulary), int(inquiry["n_rounds"])
-        )  # TODO: Calculate rounds with verbose function
+        self.n_rounds = self.calculate_rounds(int(inquiry["n_rounds"]))
         self.score = 0
         self.settings = settings.get_settings()
         self.rounds_played = 0
         self.play_game()
+
+    def calculate_rounds(self, n_rounds: str) -> int:
+        len_voc = len(self.vocabulary)
+        if 0 < n_rounds <= len_voc:
+            return n_rounds
+        elif n_rounds == 0:
+            print(
+                f"You will play as many rounds as the length of the vocabulary ({len_voc})!"
+            )
+            return len_voc
+        else:
+            print(f"Our vocabulary is shorter! You will play {len_voc} rounds")
+            return len_voc
 
     def inquire_validator(
         self, answers: Dict[str, str], current: str, validate: Callable, message: str
@@ -68,7 +79,7 @@ class Game:
             ),
             inquirer.Text(
                 name="n_rounds",
-                message="How many rounds would you like to play?",
+                message="How many rounds would you like to play? (0 to play the whole vocabulary)",
                 validate=lambda answers, current: self.inquire_validator(
                     answers,
                     current,
