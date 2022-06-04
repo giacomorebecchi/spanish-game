@@ -8,6 +8,7 @@ from inquirer import errors
 from spanish_game import settings
 from spanish_game.data import load_vocabulary
 from spanish_game.definitions import ACCENT_EQUIVALENTS, LANGUAGES
+from spanish_game.exceptions import GameStoppedError
 from spanish_game.match_strings import strings_score
 
 
@@ -107,16 +108,7 @@ class Game:
             try:
                 self.play_round()
                 self.rounds_played += 1
-            except KeyboardInterrupt:
-                if self.rounds_played:
-                    store_score = inquirer.confirm(
-                        message="Game interrupted with the keyboard. Would you like to save your score nevertheless?",
-                        default=True,
-                    )
-                    if store_score:
-                        self.store_score()
-                else:
-                    print("You have closed the game successfully. Have a nice day!")
+            except GameStoppedError:
                 return None
         self.store_score()
         if self.mistakes and inquirer.confirm(
@@ -126,12 +118,29 @@ class Game:
             self.reset_game()
             self.play_game()
 
+    def ask_answer(self, word: str) -> str:
+        try:
+            return input(f"\n{word}: ").lower()
+        except (KeyboardInterrupt, EOFError):
+            if inquirer.confirm(
+                "Game paused. Would you like to continue playing?", default=True
+            ):
+                return self.ask_answer(word)
+            else:
+                if self.rounds_played and inquirer.confirm(
+                    "Game stopped. Would you like to store your score?", default=True
+                ):
+                    self.store_score()
+                else:
+                    print(f"Thanks for playing, {self.username}!")
+                raise GameStoppedError
+
     def play_round(self) -> None:
         index = self.vocabulary.index[self.rounds_played]
         word: str = self.vocabulary.loc[index, self.source_lang]
         solution: str = self.vocabulary.loc[index, self.reply_lang].lower()
         # TODO: Handle multiple solutions
-        answer = input(f"\n{word}: ").lower()
+        answer = self.ask_answer(word)
         if solution == answer:
             print("Correct!")
             self.score += self.settings.SCORE_ROUND

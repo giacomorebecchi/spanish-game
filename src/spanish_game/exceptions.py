@@ -6,3 +6,7 @@ class InquiryException(Exception):
         self.answers = answers
         self.message = message
         super().__init__(message, *args, **kwargs)
+
+
+class GameStoppedError(Exception):
+    pass
