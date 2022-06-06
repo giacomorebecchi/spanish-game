@@ -4,10 +4,9 @@ from typing import Callable, Dict
 import inquirer
 from inquirer import errors
 
-from spanish_game import settings
-from spanish_game.definitions import ACCENT_EQUIVALENTS, LANGUAGES
+from spanish_game.definitions import LANGUAGES
 from spanish_game.exceptions import GameStoppedError, PasswordRetriesLimitError
-from spanish_game.match_strings import strings_score
+from spanish_game.round import GameRound
 from spanish_game.user import AnonUser, User
 from spanish_game.vocabulary import Vocabulary
 
@@ -30,15 +29,12 @@ class Game:
                 self.user = None
                 return None
         inquiry = self._inquire()
-        self.source_lang = inquiry["source_lang"]
-        self.reply_lang = inquiry["reply_lang"]
         self.mistakes = set()
         self.vocabulary.select_languages(
-            input_lang=self.source_lang, output_lang=self.reply_lang
+            input_lang=inquiry["source_lang"], output_lang=inquiry["reply_lang"]
         )
         self.n_rounds = self.calculate_rounds(int(inquiry["n_rounds"]))
         self.score = 0
-        self.settings = settings.get_settings()
         self.rounds_played = 0
 
     def calculate_rounds(self, n_rounds: str) -> int:
@@ -131,14 +127,18 @@ class Game:
             self.reset_game()
             self.play_game()
 
-    def ask_answer(self, word: str) -> str:
+    def play_round(self) -> None:
+        r = GameRound(self)
         try:
-            return input(f"\n{word}: ").lower()
+            r.play_round()
+            self.score += r.score
+            if not r.correct:
+                self.mistakes.add(r.index)
         except (KeyboardInterrupt, EOFError):
             if inquirer.confirm(
                 "Game paused. Would you like to continue playing?", default=True
             ):
-                return self.ask_answer(word)
+                return self.play_round()
             else:
                 if self.rounds_played and inquirer.confirm(
                     "Game stopped. Would you like to store your score?", default=True
@@ -147,58 +147,6 @@ class Game:
                 else:
                     print(f"Thanks for playing, {self.username}!")
                 raise GameStoppedError
-
-    def play_round(self) -> None:
-        index = self.vocabulary.get_index(self.rounds_played)
-        word, solution = self.vocabulary[self.rounds_played]
-        # TODO: Handle multiple solutions
-        answer = self.ask_answer(word)
-        if solution == answer:
-            print("Correct!")
-            self.score += self.settings.SCORE_ROUND
-        elif self.difference_only_accents(answer, solution):
-            self.mistakes.add(index)
-            print(
-                f"Almost! Just check the accents for a perfect answer. The correct accentuation is: {solution}"
-            )
-            penalty = sum(
-                [
-                    self.settings.COST_ACCENT if x != y else 0
-                    for x, y in zip(answer, solution)
-                ]
-            )
-            self.score += self.settings.SCORE_ROUND - penalty
-        else:
-            self.mistakes.add(index)
-            if not answer:
-                print(f"The correct answer is: {solution.capitalize()}")
-            else:
-                self.score += self.calculate_score(solution, answer)
-                print(f"Wrong! The correct answer was: {solution.capitalize()}")
-
-    def calculate_score(self, solution: str, answer: str):
-        optcost, a1, b1, _ = strings_score(
-            solution,
-            answer,
-            c_skip=self.settings.COST_SKIP,
-            c_misalignment=self.settings.COST_MISALIGNMENT,
-            c_accent=self.settings.COST_ACCENT,
-            skipchar=self.settings.SKIP_CHARACTER,
-        )
-        print("-" * (10 + len(a1)))
-        print(f"Performed match:\nAnswer:   {b1}\nSolution: {a1}")
-        print("-" * (10 + len(a1)))
-        round_score = max(0, 10 - optcost)
-        return round_score
-
-    def difference_only_accents(self, w1: str, w2: str) -> bool:
-        if len(w1) != len(w2):
-            return False
-        else:
-            for c1, c2 in zip(w1, w2):
-                if not (c1 == c2 or c1 in ACCENT_EQUIVALENTS.get(c2, {})):
-                    return False
-            return True
 
     def store_score(self) -> None:
         self.final_score = round(self.score / self.rounds_played, 4)
