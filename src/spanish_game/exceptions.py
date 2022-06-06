@@ -14,3 +14,11 @@ class GameStoppedError(Exception):
 
 class ExistentUserError(Exception):
     pass
+
+
+class OverwritingError(Exception):
+    pass
+
+
+class PasswordRetriesLimitError(Exception):
+    pass

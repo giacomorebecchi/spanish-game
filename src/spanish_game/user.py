@@ -1,9 +1,15 @@
+import getpass
 import os
 
 import bcrypt
+import pandas as pd
 
 from spanish_game.definitions import DATA_DIR
-from spanish_game.exceptions import ExistentUserError
+from spanish_game.exceptions import (
+    ExistentUserError,
+    OverwritingError,
+    PasswordRetriesLimitError,
+)
 from spanish_game.settings import get_settings
 
 
@@ -14,24 +20,29 @@ class User:
         self.user_dir = self.get_user_dir()
         if self.user_exists():
             retries = 0
-            while True:
-                self.password = input(
-                    f"Hello {self.username}! Type your password: "
-                ).encode()
-                if self.check_password():
-                    break
-                else:
-                    retries += 1
-                    if (
-                        remaining_retries := self.settings.MAX_RETRIES_PASSWORD
-                        - retries
-                    ) == 0:
-                        print("You reached the maximum number of retries. Good bye!")
-                        break
-                    else:
-                        print(
-                            f"Wrong password, please try again. {remaining_retries} tentatives remaining."
-                        )
+            if self.check_password():  # if no password was set
+                return None
+            else:  # if there is a password
+                while True:
+                    password = getpass.getpass(
+                        f"Hello {self.username}! Type your password: "
+                    ).encode()
+                    if self.check_password(password):  # if password is correct
+                        return None
+                    else:  # if password is wrong
+                        retries += 1
+                        if (
+                            remaining_retries := self.settings.MAX_RETRIES_PASSWORD
+                            - retries
+                        ) == 0:  # if retries limit reached
+                            print(
+                                "You reached the maximum number of retries. Good bye!"
+                            )
+                            raise PasswordRetriesLimitError
+                        else:  # if there are tentatives remaining
+                            print(
+                                f"Wrong password, please try again. {remaining_retries} tentatives remaining."
+                            )
         else:
             self.create_new_user()
 
@@ -55,18 +66,16 @@ class User:
         print("New user created!")
         while True:
             password = input("Choose a password: ")
-            confirm_password = input("Confirm the password: ")
-            if password == confirm_password:
-                self.password = password.encode()
-                self.store_password()
+            if password == input("Confirm the password: "):
+                self.store_password(password.encode())
                 print("Password created!")
                 break
             else:
                 print("The passwords do not correspond. Please retry!")
                 continue
 
-    def store_password(self) -> None:
-        hashed_password = bcrypt.hashpw(self.password, bcrypt.gensalt(12))
+    def store_password(self, password: bytes) -> None:
+        hashed_password = bcrypt.hashpw(password, bcrypt.gensalt(12))
         password_fp = self.get_password_fp()
         with open(password_fp, mode="wb") as f:
             f.write(hashed_password)
@@ -80,6 +89,27 @@ class User:
     def get_password_fp(self) -> str:
         return os.path.join(self.get_user_dir(), "pwd.txt")
 
-    def check_password(self) -> bool:
+    def check_password(self, password: bytes = b"") -> bool:
         hashed_password = self.read_hashed_password()
-        return bcrypt.checkpw(self.password, hashed_password)
+        return bcrypt.checkpw(password, hashed_password)
+
+    def get_data_fp(self) -> str:
+        return os.path.join(self.get_user_dir(), "data.parquet")
+
+    def get_user_data(self, columns=None) -> pd.DataFrame:
+        data_fp = self.get_data_fp()
+        if os.path.isfile(data_fp):
+            return pd.read_parquet(data_fp, columns=columns)
+        else:
+            return pd.DataFrame(columns=columns)
+
+    def write_user_data(self, df: pd.DataFrame = None) -> None:
+        data_fp = self.get_data_fp()
+        if df is None:
+            if os.path.isfile(data_fp):
+                raise OverwritingError(
+                    f"You are trying to overwrite an existing file with an empty one for user: {self.username}"
+                )
+            else:
+                df = pd.DataFrame()
+        df.to_parquet(data_fp)
