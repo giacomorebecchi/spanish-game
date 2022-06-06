@@ -63,10 +63,10 @@ class User:
 
     def create_new_user(self) -> None:
         self.create_user_dir()
-        print("New user created!")
+        print(f"Welcome, {self.username}!")
         while True:
-            password = input("Choose a password: ")
-            if password == input("Confirm the password: "):
+            password = getpass.getpass("Choose a password: ")
+            if password == getpass.getpass("Confirm the password: "):
                 self.store_password(password.encode())
                 print("Password created!")
                 break
