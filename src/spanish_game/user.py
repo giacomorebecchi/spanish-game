@@ -35,9 +35,7 @@ class User:
                             remaining_retries := self.settings.MAX_RETRIES_PASSWORD
                             - retries
                         ) == 0:  # if retries limit reached
-                            print(
-                                "You reached the maximum number of retries. Good bye!"
-                            )
+                            print("You reached the maximum number of retries.")
                             raise PasswordRetriesLimitError
                         else:  # if there are tentatives remaining
                             print(
@@ -113,3 +111,7 @@ class User:
             else:
                 df = pd.DataFrame()
         df.to_parquet(data_fp)
+
+
+class AnonUser:
+    pass  # TODO: Mock real User

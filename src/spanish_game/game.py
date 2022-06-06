@@ -8,16 +8,29 @@ from inquirer import errors
 from spanish_game import settings
 from spanish_game.data import load_vocabulary
 from spanish_game.definitions import ACCENT_EQUIVALENTS, LANGUAGES
-from spanish_game.exceptions import GameStoppedError
+from spanish_game.exceptions import GameStoppedError, PasswordRetriesLimitError
 from spanish_game.match_strings import strings_score
+from spanish_game.user import AnonUser, User
 
 
 class Game:
     def __init__(self) -> None:
         self.raw_vocabulary = load_vocabulary()
         self.available_langs = LANGUAGES
+        self.username = self._inquire_username()
+        try:
+            self.user = User(self.username)
+        except PasswordRetriesLimitError:
+            if inquirer.confirm(
+                "The login was not successful. Would you like to play anonymously?",
+                default=True,
+            ):
+                self.user = AnonUser()
+            else:
+                print("No problem. Good bye!")
+                self.user = None
+                return None
         inquiry = self._inquire()
-        self.username = inquiry["username"]
         self.source_lang = inquiry["source_lang"]
         self.reply_lang = inquiry["reply_lang"]
         self.mistakes = []
@@ -50,17 +63,6 @@ class Game:
 
     def _inquire(self) -> Dict[str, str]:
         questions = [
-            inquirer.Text(
-                name="username",
-                message="Input your username",
-                # default="anonUser",
-                validate=lambda answers, current: self.inquire_validator(
-                    answers,
-                    current,
-                    lambda _, x: re.match(re.compile(r"[a-zA-Z0-9]{4,12}"), x),
-                    "Username must be only formed by letters or numbers, length of 4 to 12.",
-                ),
-            ),
             inquirer.List(
                 name="source_lang",
                 message="From which language would you like to translate?",
@@ -91,6 +93,23 @@ class Game:
         answers = inquirer.prompt(questions)
         return answers
 
+    def _inquire_username(self) -> str:
+        questions = [
+            inquirer.Text(
+                name="username",
+                message="Input your username",
+                # default="anonUser",
+                validate=lambda answers, current: self.inquire_validator(
+                    answers,
+                    current,
+                    lambda _, x: re.match(re.compile(r"[a-zA-Z0-9]{4,12}"), x),
+                    "Username must be only formed by letters or numbers, length of 4 to 12.",
+                ),
+            ),
+        ]
+        answers = inquirer.prompt(questions)
+        return answers["username"]
+
     def prepare_vocabulary(self) -> pd.DataFrame:
         vocabulary = self.raw_vocabulary.loc[
             :, [self.source_lang, self.reply_lang]
@@ -101,6 +120,8 @@ class Game:
         return vocabulary
 
     def play_game(self) -> None:
+        if self.user is None:
+            return None
         if not self.welcome_user():
             print("No problem. See you later!")
             return None
