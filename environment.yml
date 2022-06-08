@@ -18,3 +18,5 @@ dependencies:
   - pytest
   - inquirer
   - pydantic
+  - bcrypt
+  - pyarrow

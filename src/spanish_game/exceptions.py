@@ -10,3 +10,15 @@ class InquiryException(Exception):
 
 class GameStoppedError(Exception):
     pass
+
+
+class ExistentUserError(Exception):
+    pass
+
+
+class OverwritingError(Exception):
+    pass
+
+
+class PasswordRetriesLimitError(Exception):
+    pass

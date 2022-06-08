@@ -25,7 +25,7 @@ def test_vocabulary_file():
 
 
 def test_languages():
-    assert isinstance(LANGUAGES, list)
+    assert isinstance(LANGUAGES, set)
     for lang in LANGUAGES:
         assert isinstance(lang, str)
         assert re.match(re.compile(r"^[A-Z][a-z]+$"), lang)

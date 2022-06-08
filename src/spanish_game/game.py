@@ -2,29 +2,39 @@ import re
 from typing import Callable, Dict
 
 import inquirer
-import pandas as pd
 from inquirer import errors
 
-from spanish_game import settings
-from spanish_game.data import load_vocabulary
-from spanish_game.definitions import ACCENT_EQUIVALENTS, LANGUAGES
-from spanish_game.exceptions import GameStoppedError
-from spanish_game.match_strings import strings_score
+from spanish_game.definitions import LANGUAGES
+from spanish_game.exceptions import GameStoppedError, PasswordRetriesLimitError
+from spanish_game.round import GameRound
+from spanish_game.user import AnonUser, User
+from spanish_game.vocabulary import Vocabulary
 
 
 class Game:
     def __init__(self) -> None:
-        self.raw_vocabulary = load_vocabulary()
+        self.vocabulary = Vocabulary()
         self.available_langs = LANGUAGES
+        self.username = self._inquire_username()
+        try:
+            self.user = User(self.username)
+        except PasswordRetriesLimitError:
+            if inquirer.confirm(
+                "The login was not successful. Would you like to play anonymously?",
+                default=True,
+            ):
+                self.user = AnonUser()
+            else:
+                print("No problem. Good bye!")
+                self.user = None
+                return None
         inquiry = self._inquire()
-        self.username = inquiry["username"]
-        self.source_lang = inquiry["source_lang"]
-        self.reply_lang = inquiry["reply_lang"]
-        self.mistakes = []
-        self.vocabulary = self.prepare_vocabulary()
+        self.mistakes = set()
+        self.vocabulary.select_languages(
+            input_lang=inquiry["source_lang"], output_lang=inquiry["reply_lang"]
+        )
         self.n_rounds = self.calculate_rounds(int(inquiry["n_rounds"]))
         self.score = 0
-        self.settings = settings.get_settings()
         self.rounds_played = 0
 
     def calculate_rounds(self, n_rounds: str) -> int:
@@ -50,17 +60,6 @@ class Game:
 
     def _inquire(self) -> Dict[str, str]:
         questions = [
-            inquirer.Text(
-                name="username",
-                message="Input your username",
-                # default="anonUser",
-                validate=lambda answers, current: self.inquire_validator(
-                    answers,
-                    current,
-                    lambda _, x: re.match(re.compile(r"[a-zA-Z0-9]{4,12}"), x),
-                    "Username must be only formed by letters or numbers, length of 4 to 12.",
-                ),
-            ),
             inquirer.List(
                 name="source_lang",
                 message="From which language would you like to translate?",
@@ -91,16 +90,26 @@ class Game:
         answers = inquirer.prompt(questions)
         return answers
 
-    def prepare_vocabulary(self) -> pd.DataFrame:
-        vocabulary = self.raw_vocabulary.loc[
-            :, [self.source_lang, self.reply_lang]
-        ].copy()
-        if self.mistakes:
-            vocabulary = vocabulary.loc[self.mistakes, :]
-        vocabulary = vocabulary.dropna(axis=0).sample(frac=1)
-        return vocabulary
+    def _inquire_username(self) -> str:
+        questions = [
+            inquirer.Text(
+                name="username",
+                message="Input your username",
+                # default="anonUser",
+                validate=lambda answers, current: self.inquire_validator(
+                    answers,
+                    current,
+                    lambda _, x: re.match(re.compile(r"[a-zA-Z0-9]{4,12}"), x),
+                    "Username must be only formed by letters or numbers, length of 4 to 12.",
+                ),
+            ),
+        ]
+        answers = inquirer.prompt(questions)
+        return answers["username"]
 
     def play_game(self) -> None:
+        if self.user is None:
+            return None
         if not self.welcome_user():
             print("No problem. See you later!")
             return None
@@ -118,14 +127,18 @@ class Game:
             self.reset_game()
             self.play_game()
 
-    def ask_answer(self, word: str) -> str:
+    def play_round(self) -> None:
+        r = GameRound(self)
         try:
-            return input(f"\n{word}: ").lower()
+            r.play_round()
+            self.score += r.score
+            if not r.correct:
+                self.mistakes.add(r.index)
         except (KeyboardInterrupt, EOFError):
             if inquirer.confirm(
                 "Game paused. Would you like to continue playing?", default=True
             ):
-                return self.ask_answer(word)
+                return self.play_round()
             else:
                 if self.rounds_played and inquirer.confirm(
                     "Game stopped. Would you like to store your score?", default=True
@@ -134,59 +147,6 @@ class Game:
                 else:
                     print(f"Thanks for playing, {self.username}!")
                 raise GameStoppedError
-
-    def play_round(self) -> None:
-        index = self.vocabulary.index[self.rounds_played]
-        word: str = self.vocabulary.loc[index, self.source_lang]
-        solution: str = self.vocabulary.loc[index, self.reply_lang].lower()
-        # TODO: Handle multiple solutions
-        answer = self.ask_answer(word)
-        if solution == answer:
-            print("Correct!")
-            self.score += self.settings.SCORE_ROUND
-        elif self.difference_only_accents(answer, solution):
-            self.mistakes.append(index)
-            print(
-                f"Almost! Just check the accents for a perfect answer. The correct accentuation is: {solution}"
-            )
-            penalty = sum(
-                [
-                    self.settings.COST_ACCENT if x != y else 0
-                    for x, y in zip(answer, solution)
-                ]
-            )
-            self.score += self.settings.SCORE_ROUND - penalty
-        else:
-            self.mistakes.append(index)
-            if not answer:
-                print(f"The correct answer is: {solution.capitalize()}")
-            else:
-                self.score += self.calculate_score(solution, answer)
-                print(f"Wrong! The correct answer was: {solution.capitalize()}")
-
-    def calculate_score(self, solution: str, answer: str):
-        optcost, a1, b1, _ = strings_score(
-            solution,
-            answer,
-            c_skip=self.settings.COST_SKIP,
-            c_misalignment=self.settings.COST_MISALIGNMENT,
-            c_accent=self.settings.COST_ACCENT,
-            skipchar=self.settings.SKIP_CHARACTER,
-        )
-        print("-" * (10 + len(a1)))
-        print(f"Performed match:\nAnswer:   {b1}\nSolution: {a1}")
-        print("-" * (10 + len(a1)))
-        round_score = max(0, 10 - optcost)
-        return round_score
-
-    def difference_only_accents(self, w1: str, w2: str) -> bool:
-        if len(w1) != len(w2):
-            return False
-        else:
-            for c1, c2 in zip(w1, w2):
-                if not (c1 == c2 or c1 in ACCENT_EQUIVALENTS.get(c2, {})):
-                    return False
-            return True
 
     def store_score(self) -> None:
         self.final_score = round(self.score / self.rounds_played, 4)
@@ -203,7 +163,8 @@ class Game:
 
     def reset_game(self) -> None:
         self.n_rounds = len(self.mistakes)
-        self.vocabulary = self.prepare_vocabulary()
+        self.vocabulary.reset_vocabulary(keep_languages=True)
+        self.vocabulary.select_index(self.mistakes)
         self.score = 0
         self.rounds_played = 0
-        self.mistakes = []
+        self.mistakes = set()
