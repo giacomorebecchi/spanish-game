@@ -1,8 +1,9 @@
-from typing import Set, Tuple
+from typing import List, Set, Tuple
 
 import pandas as pd
 
-from spanish_game.definitions import LANGUAGES, VOCABULARY_FILE
+from .definitions import LANGUAGES, VOCABULARY_FILE
+from .game_mode import Mode
 
 
 class Vocabulary:
@@ -27,9 +28,6 @@ class Vocabulary:
             self.df.loc[index, self.output_lang].lower(),
         )
 
-    def get_index(self, key: int) -> int:
-        return self.df.index[key]
-
     def validate_vocabulary(self) -> None:
         diff = set.difference(set(self.raw_df.columns), self.available_languages)
         if diff:
@@ -45,7 +43,14 @@ class Vocabulary:
         self.df = self.df.loc[:, [self.input_lang, self.output_lang]]
         self.df.dropna(axis=0, inplace=True)
 
-    def select_categories(self, categories: Set = None):
+    def select_modes(self, modes: List[Mode]) -> None:
+        for mode in modes:
+            if mode.inclusive:
+                self.df = self.df.loc[mode.ids, :]
+            else:
+                self.df = self.df[~self.df.index.isin(mode.ids)]
+
+    def select_categories(self, categories: Set = None) -> None:
         pass  # TODO
 
     def select_index(self, index: int | Set[int]) -> None:

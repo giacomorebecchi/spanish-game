@@ -1,14 +1,15 @@
 import re
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import inquirer
 from inquirer import errors
 
-from spanish_game.definitions import LANGUAGES
-from spanish_game.exceptions import GameStoppedError, PasswordRetriesLimitError
-from spanish_game.round import GameRound
-from spanish_game.user import AnonUser, User
-from spanish_game.vocabulary import Vocabulary
+from .definitions import LANGUAGES
+from .exceptions import GameStoppedError, PasswordRetriesLimitError
+from .game_mode import Mode
+from .round import GameRound
+from .user import AnonUser, User
+from .vocabulary import Vocabulary
 
 
 class Game:
@@ -30,9 +31,13 @@ class Game:
                 return None
         inquiry = self._inquire()
         self.mistakes = set()
+        self.input_lang = inquiry["source_lang"]
+        self.output_lang = inquiry["reply_lang"]
         self.vocabulary.select_languages(
-            input_lang=inquiry["source_lang"], output_lang=inquiry["reply_lang"]
+            input_lang=self.input_lang, output_lang=self.output_lang
         )
+        self.modes = self.calculate_modes()
+        self.vocabulary.select_modes(self.modes)
         self.n_rounds = self.calculate_rounds(int(inquiry["n_rounds"]))
         self.score = 0
         self.rounds_played = 0
@@ -49,6 +54,10 @@ class Game:
         else:
             print(f"Our vocabulary is shorter! You will play {len_voc} rounds")
             return len_voc
+
+    def calculate_modes(self) -> Dict[str, List[int]]:
+        modes = self.user.data.get_modes_indices(self.input_lang, self.output_lang)
+        return self._inquire_modes(modes)
 
     def inquire_validator(
         self, answers: Dict[str, str], current: str, validate: Callable, message: str
@@ -106,6 +115,18 @@ class Game:
         ]
         answers = inquirer.prompt(questions)
         return answers["username"]
+
+    def _inquire_modes(self, modes: List[Mode]) -> List[str]:
+        questions = [
+            inquirer.Checkbox(
+                name="modes",
+                message="Which modality of game would you like to play?",
+                choices=modes,
+                carousel=True,
+            ),
+        ]
+        answers = inquirer.prompt(questions)
+        return answers["modes"]
 
     def play_game(self) -> None:
         if self.user is None:

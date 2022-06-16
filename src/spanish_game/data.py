@@ -2,7 +2,7 @@ from typing import Dict, List
 
 import pandas as pd
 
-from spanish_game.definitions import LANGUAGES, VOCABULARY_FILE
+from .definitions import LANGUAGES, VOCABULARY_FILE
 
 
 def validate_vocabulary(
