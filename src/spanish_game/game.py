@@ -173,6 +173,10 @@ class Game:
 
     def store_score(self) -> None:
         tot_score = self.score_ar.sum()
+        self.result = self.vocabulary.get_ids(self.rounds_played)
+        for i, d in enumerate(self.result):
+            d["score"] = self.score_ar[i]
+        self.user.data.store_game_result(self.input_lang, self.output_lang, self.result)
         self.final_score = round(tot_score / self.rounds_played, 4)
         print(
             f"\nThanks for playing, {self.username}! The total score is: {tot_score} on {self.rounds_played} rounds played. Your final score is {self.final_score}!"

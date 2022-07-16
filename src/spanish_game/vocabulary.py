@@ -1,4 +1,4 @@
-from typing import List, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 import pandas as pd
 
@@ -56,5 +56,12 @@ class Vocabulary:
     def select_index(self, index: int | Set[int]) -> None:
         self.df = self.df.loc[list(index), :]
 
-    def get_ids(self, keys: List[int]) -> List[int]:
-        return self.df.index[keys]
+    def get_ids(self, rounds_played: int) -> List[Dict]:
+        return [
+            {
+                "id": (index := self.df.index[i]),
+                self.input_lang: self.df.loc[index, self.input_lang].lower(),
+                self.output_lang: self.df.loc[index, self.output_lang].lower(),
+            }
+            for i in range(rounds_played)
+        ]

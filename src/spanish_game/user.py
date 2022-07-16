@@ -1,7 +1,7 @@
 import getpass
 import os
 from itertools import permutations, product
-from typing import List
+from typing import Dict, List
 
 import bcrypt
 import pandas as pd
@@ -167,6 +167,11 @@ class User:
                 if mode.ids or not (mode.inclusive):
                     correct_modes.append(mode)
             return correct_modes
+
+        def store_game_result(
+            self, input_lang: str, output_lang: str, result: Dict[int, float]
+        ) -> None:
+            print(result)  # TODO
 
 
 class AnonUser:
