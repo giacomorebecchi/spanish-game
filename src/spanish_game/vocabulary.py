@@ -55,3 +55,6 @@ class Vocabulary:
 
     def select_index(self, index: int | Set[int]) -> None:
         self.df = self.df.loc[list(index), :]
+
+    def get_ids(self, keys: List[int]) -> List[int]:
+        return self.df.index[keys]
