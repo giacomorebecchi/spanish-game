@@ -2,6 +2,7 @@ import re
 from typing import Callable, Dict, List
 
 import inquirer
+import numpy as np
 from inquirer import errors
 
 from .definitions import LANGUAGES
@@ -39,7 +40,7 @@ class Game:
         self.modes = self.calculate_modes()
         self.vocabulary.select_modes(self.modes)
         self.n_rounds = self.calculate_rounds(int(inquiry["n_rounds"]))
-        self.score = 0
+        self.score_ar = np.zeros(self.n_rounds)
         self.rounds_played = 0
 
     def calculate_rounds(self, n_rounds: str) -> int:
@@ -152,7 +153,8 @@ class Game:
         r = GameRound(self)
         try:
             r.play_round()
-            self.score += r.score
+            self.score_ar[self.rounds_played] = r.score
+
             if not r.correct:
                 self.mistakes.add(r.index)
         except (KeyboardInterrupt, EOFError):
@@ -170,9 +172,10 @@ class Game:
                 raise GameStoppedError
 
     def store_score(self) -> None:
-        self.final_score = round(self.score / self.rounds_played, 4)
+        tot_score = self.score_ar.sum()
+        self.final_score = round(tot_score / self.rounds_played, 4)
         print(
-            f"\nThanks for playing, {self.username}! The total score is: {self.score} on {self.rounds_played} rounds played. Your final score is {self.final_score}!"
+            f"\nThanks for playing, {self.username}! The total score is: {tot_score} on {self.rounds_played} rounds played. Your final score is {self.final_score}!"
         )
 
     def welcome_user(self) -> None:
@@ -186,6 +189,6 @@ class Game:
         self.n_rounds = len(self.mistakes)
         self.vocabulary.reset_vocabulary(keep_languages=True)
         self.vocabulary.select_index(self.mistakes)
-        self.score = 0
+        self.score_ar = np.zeros(self.n_rounds)
         self.rounds_played = 0
         self.mistakes = set()
