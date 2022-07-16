@@ -4,6 +4,7 @@ from itertools import permutations, product
 from typing import Dict, List
 
 import bcrypt
+import numpy as np
 import pandas as pd
 
 from .definitions import DATA_DIR, LANGUAGES
@@ -95,16 +96,9 @@ class User:
     def get_data_fp(self) -> str:
         return os.path.join(self.get_user_dir(), "data.parquet")
 
-    def write_user_data(self, df: pd.DataFrame = None) -> None:
+    def write_user_data(self) -> None:
         data_fp = self.get_data_fp()
-        if df is None:
-            if os.path.isfile(data_fp):
-                raise OverwritingError(
-                    f"You are trying to overwrite an existing file with an empty one for user: {self.username}"
-                )
-            else:
-                df = pd.DataFrame()
-        df.to_parquet(data_fp)
+        self.data.data.to_parquet(data_fp)
 
     class UserData:
         modes: List[Mode] = [
@@ -133,10 +127,10 @@ class User:
                 self.data = pd.read_parquet(data_fp, columns=self.columns)
             else:
                 self.data = pd.DataFrame(columns=self.columns)
+                self.data.index.name = "id"
 
         def _get_columns(self) -> List[str]:
             columns = [
-                "id",
                 *LANGUAGES,
             ]
             columns_per_combination = [
@@ -168,10 +162,35 @@ class User:
                     correct_modes.append(mode)
             return correct_modes
 
-        def store_game_result(
-            self, input_lang: str, output_lang: str, result: Dict[int, float]
+        def update_game_result(
+            self, input_lang: str, output_lang: str, result: List[Dict]
         ) -> None:
-            print(result)  # TODO
+            def get_col(suffix: str, n: int = None):
+                is_n = 1 if n is not None else 0
+                return f"{input_lang}-{output_lang}_{suffix}" + is_n * ("-" + str(n))
+
+            def safe_add(a: float, b: float) -> float:
+                return b if np.isnan(a) else a + b
+
+            for round in result:
+                if (id := round["id"]) in self.data.index:
+                    self.data.loc[id, get_col("n-rounds")] = safe_add(
+                        self.data.loc[id, get_col("n-rounds")], 1
+                    )
+                    self.data.loc[id, get_col("tot-score")] = safe_add(
+                        self.data.loc[id, get_col("tot-score")], round["score"]
+                    )
+                    for i in range(5, 1, -1):
+                        self.data.loc[id, get_col("score", i)] = self.data.loc[
+                            id, get_col("score", i - 1)
+                        ]
+                    self.data.loc[id, get_col("score", 1)] = round["score"]
+                else:
+                    self.data.loc[id, input_lang] = round[input_lang]
+                    self.data.loc[id, output_lang] = round[output_lang]
+                    self.data.loc[id, get_col("n-rounds")] = 1
+                    self.data.loc[id, get_col("tot-score")] = round["score"]
+                    self.data.loc[id, get_col("score", 1)] = round["score"]
 
 
 class AnonUser:

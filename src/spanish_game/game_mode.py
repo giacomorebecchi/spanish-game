@@ -28,19 +28,19 @@ class Mode(BaseModel):
         if self.name == "all":
             self.ids = []
         elif self.name == "new":
-            self.ids = data["id"].to_list()
+            self.ids = data.index.to_list()
         elif self.name == "low-score":
             self.ids = data[
                 data[get_col("tot-score")] / data[get_col("n-rounds")]
                 < self.score_round * 0.8
-            ]["id"].to_list()
+            ].index.to_list()
         elif self.name == "last-1-error":
-            self.ids = data[data[get_col("score-1")] != self.score_round][
-                "id"
-            ].to_list()
+            self.ids = data[
+                data[get_col("score-1")] != self.score_round
+            ].index.to_list()
         elif self.name == "last-n-error":
             scores = [get_col(f"score-{i+1}") for i in range(5)]  # TODO: Parametrize
             avg_n_score = data[scores].sum(axis=1) / np.minimum(
                 data[get_col("n-rounds")], 5  # TODO: parametrize
             )
-            self.ids = data[avg_n_score != self.score_round]["id"].to_list()
+            self.ids = data[avg_n_score != self.score_round].index.to_list()
