@@ -142,12 +142,6 @@ class Game:
             except GameStoppedError:
                 return None
         self.store_score()
-        if self.mistakes and inquirer.confirm(
-            message="Would you like to start a new game, practicing only on your mistakes?",
-            default=False,
-        ):
-            self.reset_game()
-            self.play_game()
 
     def play_round(self) -> None:
         r = GameRound(self)
@@ -191,11 +185,3 @@ class Game:
             f"Are you ready to start playing?",
             default=True,
         )
-
-    def reset_game(self) -> None:
-        self.n_rounds = len(self.mistakes)
-        self.vocabulary.reset_vocabulary(keep_languages=True)
-        self.vocabulary.select_index(self.mistakes)
-        self.score_ar = np.zeros(self.n_rounds)
-        self.rounds_played = 0
-        self.mistakes = set()
