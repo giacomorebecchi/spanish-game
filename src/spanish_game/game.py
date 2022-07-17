@@ -1,14 +1,16 @@
 import re
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import inquirer
+import numpy as np
 from inquirer import errors
 
-from spanish_game.definitions import LANGUAGES
-from spanish_game.exceptions import GameStoppedError, PasswordRetriesLimitError
-from spanish_game.round import GameRound
-from spanish_game.user import AnonUser, User
-from spanish_game.vocabulary import Vocabulary
+from .definitions import LANGUAGES
+from .exceptions import GameStoppedError, PasswordRetriesLimitError
+from .game_mode import Mode
+from .round import GameRound
+from .user import AnonUser, User
+from .vocabulary import Vocabulary
 
 
 class Game:
@@ -30,11 +32,15 @@ class Game:
                 return None
         inquiry = self._inquire()
         self.mistakes = set()
+        self.input_lang = inquiry["source_lang"]
+        self.output_lang = inquiry["reply_lang"]
         self.vocabulary.select_languages(
-            input_lang=inquiry["source_lang"], output_lang=inquiry["reply_lang"]
+            input_lang=self.input_lang, output_lang=self.output_lang
         )
+        self.modes = self.calculate_modes()
+        self.vocabulary.select_modes(self.modes)
         self.n_rounds = self.calculate_rounds(int(inquiry["n_rounds"]))
-        self.score = 0
+        self.score_ar = np.zeros(self.n_rounds)
         self.rounds_played = 0
 
     def calculate_rounds(self, n_rounds: str) -> int:
@@ -49,6 +55,10 @@ class Game:
         else:
             print(f"Our vocabulary is shorter! You will play {len_voc} rounds")
             return len_voc
+
+    def calculate_modes(self) -> Dict[str, List[int]]:
+        modes = self.user.data.get_modes_indices(self.input_lang, self.output_lang)
+        return self._inquire_modes(modes)
 
     def inquire_validator(
         self, answers: Dict[str, str], current: str, validate: Callable, message: str
@@ -107,6 +117,18 @@ class Game:
         answers = inquirer.prompt(questions)
         return answers["username"]
 
+    def _inquire_modes(self, modes: List[Mode]) -> List[str]:
+        questions = [
+            inquirer.Checkbox(
+                name="modes",
+                message="Which modality of game would you like to play?",
+                choices=modes,
+                carousel=True,
+            ),
+        ]
+        answers = inquirer.prompt(questions)
+        return answers["modes"]
+
     def play_game(self) -> None:
         if self.user is None:
             return None
@@ -120,18 +142,13 @@ class Game:
             except GameStoppedError:
                 return None
         self.store_score()
-        if self.mistakes and inquirer.confirm(
-            message="Would you like to start a new game, practicing only on your mistakes?",
-            default=False,
-        ):
-            self.reset_game()
-            self.play_game()
 
     def play_round(self) -> None:
         r = GameRound(self)
         try:
             r.play_round()
-            self.score += r.score
+            self.score_ar[self.rounds_played] = r.score
+
             if not r.correct:
                 self.mistakes.add(r.index)
         except (KeyboardInterrupt, EOFError):
@@ -149,9 +166,17 @@ class Game:
                 raise GameStoppedError
 
     def store_score(self) -> None:
-        self.final_score = round(self.score / self.rounds_played, 4)
+        tot_score = self.score_ar.sum()
+        self.result = self.vocabulary.get_ids(self.rounds_played)
+        for i, d in enumerate(self.result):
+            d["score"] = self.score_ar[i]
+        self.user.data.update_game_result(
+            self.input_lang, self.output_lang, self.result
+        )
+        self.user.write_user_data()
+        self.final_score = round(tot_score / self.rounds_played, 4)
         print(
-            f"\nThanks for playing, {self.username}! The total score is: {self.score} on {self.rounds_played} rounds played. Your final score is {self.final_score}!"
+            f"\nThanks for playing, {self.username}! The total score is: {tot_score} on {self.rounds_played} rounds played. Your final score is {self.final_score}!"
         )
 
     def welcome_user(self) -> None:
@@ -160,11 +185,3 @@ class Game:
             f"Are you ready to start playing?",
             default=True,
         )
-
-    def reset_game(self) -> None:
-        self.n_rounds = len(self.mistakes)
-        self.vocabulary.reset_vocabulary(keep_languages=True)
-        self.vocabulary.select_index(self.mistakes)
-        self.score = 0
-        self.rounds_played = 0
-        self.mistakes = set()

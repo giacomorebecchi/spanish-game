@@ -1,6 +1,6 @@
 from pydantic import BaseModel, validator
 
-from spanish_game import config
+from . import config
 
 
 class Settings(BaseModel):

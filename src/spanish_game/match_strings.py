@@ -1,6 +1,6 @@
 import numpy as np
 
-from spanish_game.definitions import ACCENT_EQUIVALENTS
+from .definitions import ACCENT_EQUIVALENTS
 
 
 def costchar(x, y, c_m, c_a):

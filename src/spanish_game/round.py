@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from spanish_game.definitions import ACCENT_EQUIVALENTS
-from spanish_game.match_strings import strings_score
-from spanish_game.settings import get_settings
+from .definitions import ACCENT_EQUIVALENTS
+from .match_strings import strings_score
+from .settings import get_settings
 
 if TYPE_CHECKING:
     from spanish_game.game import Game
@@ -14,7 +14,7 @@ class GameRound:
     def __init__(self, game: Game) -> None:
         self.round = game.rounds_played
         self.vocabulary = game.vocabulary
-        self.index = self.vocabulary.get_index(game.rounds_played)
+        self.index = game.rounds_played
         self.settings = get_settings()
         self.score = self.settings.SCORE_ROUND
 
@@ -45,6 +45,7 @@ class GameRound:
             else:
                 self.calculate_score(solution, answer)
                 print(f"Wrong! The correct answer was: {solution.capitalize()}")
+        print(f"Points earned: {self.score}")
 
     def calculate_score(self, solution: str, answer: str):
         optcost, a1, b1, _ = strings_score(
