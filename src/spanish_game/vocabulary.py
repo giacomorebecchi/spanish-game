@@ -46,9 +46,9 @@ class Vocabulary:
     def select_modes(self, modes: List[Mode]) -> None:
         for mode in modes:
             if mode.inclusive:
-                self.df = self.df.loc[mode.ids, :]
+                self.df = self.df.loc[mode.ids, :].sample(frac=1)
             else:
-                self.df = self.df[~self.df.index.isin(mode.ids)]
+                self.df = self.df[~self.df.index.isin(mode.ids)].sample(frac=1)
 
     def select_categories(self, categories: Set = None) -> None:
         pass  # TODO
