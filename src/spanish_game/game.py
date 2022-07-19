@@ -5,6 +5,8 @@ import inquirer
 import numpy as np
 from inquirer import errors
 
+from spanish_game.settings import Settings
+
 from .definitions import LANGUAGES
 from .exceptions import GameStoppedError, PasswordRetriesLimitError
 from .game_mode import Mode
@@ -178,6 +180,17 @@ class Game:
         print(
             f"\nThanks for playing, {self.username}! The total score is: {tot_score} on {self.rounds_played} rounds played. Your final score is {self.final_score}!"
         )
+        self.print_mistakes()
+
+    def print_mistakes(self):
+        if self.mistakes:
+            print("\n")
+            print("Here is a recap of your mistakes:")
+            for round in self.result:
+                if round["score"] < Settings().SCORE_ROUND:
+                    print("-" * 20)
+                    print(f"{self.input_lang}: {round[self.input_lang]}")
+                    print(f"{self.output_lang}: {round[self.output_lang]}")
 
     def welcome_user(self) -> None:
         print("\n")
