@@ -46,10 +46,14 @@ def main():
         s = s.replace("-\n", "").replace(",", ";").replace(": ", ",")
         s = remove_newlines(s)
         s = remove_brackets(s)
-        df = pd.read_csv(StringIO(s.lower()), header=None).rename(
-            columns={0: "Spanish", 1: "Italian"}
-        )
-        df.to_excel(file_name.removesuffix(".txt") + ".xlsx", index=False)
+        try:
+            df = pd.read_csv(StringIO(s.lower()), header=None).rename(
+                columns={0: "Spanish", 1: "Italian"}
+            )
+            df.to_excel(file_name.removesuffix(".txt") + ".xlsx", index=False)
+        except Exception as e:
+            print(f"Failed for file {file_name}")
+            print(e)
         # with open(
         #     os.path.join(FOLDER, file_name.removesuffix(".txt") + ".csv"), mode="wb"
         # ) as new_f:
