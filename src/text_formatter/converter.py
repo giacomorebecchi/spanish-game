@@ -1,11 +1,13 @@
 import os
 from io import StringIO
+from typing import List, Optional
 
 import pandas as pd
 
+FOLDER = os.path.realpath(os.path.join(os.path.dirname(__file__), "txt"))
+
 
 def find_files():
-    FOLDER = os.path.realpath(os.path.join(os.path.dirname(__file__), "txt"))
     return [
         os.path.join(FOLDER, el) for el in os.listdir(FOLDER) if el.endswith(".txt")
     ]
@@ -39,8 +41,12 @@ def remove_brackets(s):
     return new_s
 
 
-def main():
-    for file_name in find_files():
+def main(letters: Optional[List] = None) -> None:
+    if not letters:
+        letters = find_files()
+    else:
+        letters = [os.path.join(FOLDER, letter + ".txt") for letter in letters]
+    for file_name in letters:
         with open(file_name, mode="r") as f:
             s = f.read()
         s = s.replace("-\n", "").replace(",", ";").replace(": ", ",")
@@ -50,7 +56,11 @@ def main():
             df = pd.read_csv(StringIO(s.lower()), header=None).rename(
                 columns={0: "Spanish", 1: "Italian"}
             )
-            df.to_excel(file_name.removesuffix(".txt") + ".xlsx", index=False)
+            df.to_excel(
+                file_name.removesuffix(".txt") + ".xlsx",
+                index=False,
+                columns=["Italian", "Spanish"],
+            )
         except Exception as e:
             print(f"Failed for file {file_name}")
             print(e)
@@ -62,3 +72,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # main(["a"])
